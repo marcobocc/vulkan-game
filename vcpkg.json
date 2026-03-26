@@ -18,6 +18,14 @@
     {
       "name": "volk",
       "default-features": true
+    },
+    {
+      "name": "log4cxx",
+      "default-features": true
+    },
+    {
+      "name": "fmt",
+      "default-features": true
     }
   ]
 }

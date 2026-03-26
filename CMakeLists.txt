@@ -11,6 +11,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # -------------------------------------------------------------------------
 # Find dependencies via vcpkg
 # -------------------------------------------------------------------------
+find_package(EXPAT REQUIRED)
+find_package(log4cxx CONFIG REQUIRED)
+find_package(fmt CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(volk CONFIG REQUIRED)
@@ -36,6 +39,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/s
 # Link libraries
 # -------------------------------------------------------------------------
 target_link_libraries(${PROJECT_NAME} PRIVATE
+        log4cxx
+        fmt::fmt
         glfw
         glm::glm
         volk::volk
