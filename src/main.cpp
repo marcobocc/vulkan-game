@@ -3,12 +3,11 @@
 #include <log4cxx/consoleappender.h>
 #include <log4cxx/logger.h>
 #include <log4cxx/patternlayout.h>
-#include "VulkanGraphicsBackend.hpp"
+#include "vulkan/VulkanGraphicsBackend.hpp"
 
 using namespace log4cxx;
 
 auto main() -> int {
-    volkInitialize(); // loads global Vulkan function pointers
     // -------------------------------
     // Logger setup
     // -------------------------------
@@ -40,17 +39,17 @@ auto main() -> int {
     }
 
     // -------------------------------
-    // Initialize Renderer
+    // Initialize Graphics Backend
     // -------------------------------
-    VulkanGraphicsBackend renderer(logger, true);
-    if (!renderer.init()) {
-        LOG4CXX_ERROR(logger, "Renderer initialization failed");
+    auto graphicsBackend = VulkanGraphicsBackend();
+    if (!graphicsBackend.init()) {
+        LOG4CXX_ERROR(logger, "Vulkan graphics backend initialization failed");
         glfwDestroyWindow(window);
         glfwTerminate();
         return -1;
     }
 
-    LOG4CXX_INFO(logger, "Renderer initialized successfully");
+    LOG4CXX_INFO(logger, "Vulkan graphics backend initialized successfully");
 
     // -------------------------------
     // Main loop

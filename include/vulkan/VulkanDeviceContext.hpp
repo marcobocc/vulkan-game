@@ -1,6 +1,5 @@
 #pragma once
 #include <log4cxx/logger.h>
-#include <volk.h>
 #include <vulkan/vulkan.h>
 #include <vector>
 #include <string>
@@ -9,26 +8,24 @@
 #define VK_KHR_PORTABILITY_SUBSET_EXTENSION_NAME "VK_KHR_portability_subset"
 #endif
 
-class VulkanGraphicsBackend {
+class VulkanDeviceContext {
 public:
-    explicit VulkanGraphicsBackend(log4cxx::LoggerPtr logger, bool enableValidation = true)
-        : logger_(std::move(logger)),
-          enableValidation_(enableValidation) {}
+    VulkanDeviceContext() = default;
 
-    ~VulkanGraphicsBackend() {
+    ~VulkanDeviceContext() {
         if (debugMessenger_) vkDestroyDebugUtilsMessengerEXT(instance_, debugMessenger_, nullptr);
         if (commandPool_) vkDestroyCommandPool(device_, commandPool_, nullptr);
         if (device_) vkDestroyDevice(device_, nullptr);
         if (instance_) vkDestroyInstance(instance_, nullptr);
     }
 
-    VulkanGraphicsBackend(const VulkanGraphicsBackend&) = delete;
-    VulkanGraphicsBackend& operator=(const VulkanGraphicsBackend&) = delete;
-    VulkanGraphicsBackend(VulkanGraphicsBackend&&) = delete;
-    VulkanGraphicsBackend& operator=(VulkanGraphicsBackend&&) = delete;
+    VulkanDeviceContext(const VulkanDeviceContext&) = delete;
+    VulkanDeviceContext& operator=(const VulkanDeviceContext&) = delete;
+    VulkanDeviceContext(VulkanDeviceContext&&) = delete;
+    VulkanDeviceContext& operator=(VulkanDeviceContext&&) = delete;
 
-    bool init(VkInstance instanceHint = VK_NULL_HANDLE) {
-        if (!createInstance(instanceHint)) return false;
+    bool init() {
+        if (!createInstance()) return false;
         volkLoadInstance(instance_);
         if (!pickPhysicalDevice()) return false;
         if (!createLogicalDevice()) return false;
@@ -43,12 +40,7 @@ private:
 // Instance
 // ----------------------------------------------------------
 
-    bool createInstance(VkInstance hint) {
-        if (hint != VK_NULL_HANDLE) {
-            instance_ = hint;
-            return true;
-        }
-
+    bool createInstance() {
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = "GameEngine";
@@ -58,8 +50,7 @@ private:
         appInfo.apiVersion = VK_API_VERSION_1_2;
 
         std::vector<const char*> layers;
-        if (enableValidation_)
-            layers.push_back("VK_LAYER_KHRONOS_validation");
+        layers.push_back("VK_LAYER_KHRONOS_validation");
 
         const auto extensions = getRequiredExtensions();
 
@@ -77,22 +68,21 @@ private:
 
         const VkResult res = vkCreateInstance(&createInfo, nullptr, &instance_);
         if (res != VK_SUCCESS) {
-            LOG4CXX_ERROR(logger_, "Failed to create Vulkan instance: " << res);
+            LOG4CXX_ERROR(LOGGER, "Failed to create Vulkan instance: " << res);
             return false;
         }
 
-        LOG4CXX_INFO(logger_, "Vulkan instance created");
+        LOG4CXX_INFO(LOGGER, "Vulkan instance created");
         return true;
     }
 
-    std::vector<const char*> getRequiredExtensions() const {
+    static std::vector<const char*> getRequiredExtensions() {
         std::vector<const char*> extensions;
 #ifdef __APPLE__
         extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
         extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-        if (enableValidation_)
-            extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         return extensions;
     }
 
@@ -104,7 +94,7 @@ private:
         uint32_t deviceCount = 0;
 
         if (vkEnumeratePhysicalDevices(instance_, &deviceCount, nullptr) != VK_SUCCESS || deviceCount == 0) {
-            LOG4CXX_ERROR(logger_, "No Vulkan-capable GPU found");
+            LOG4CXX_ERROR(LOGGER, "No Vulkan-capable GPU found");
             return false;
         }
 
@@ -114,31 +104,25 @@ private:
         for (const auto device : devices) {
             if (isDeviceSuitable(device)) {
                 physicalDevice_ = device;
-                LOG4CXX_INFO(logger_, "Selected physical device");
+                LOG4CXX_INFO(LOGGER, "Selected physical device");
                 return true;
             }
         }
 
-        LOG4CXX_ERROR(logger_, "No suitable physical device found");
+        LOG4CXX_ERROR(LOGGER, "No suitable physical device found");
         return false;
     }
 
-    bool isDeviceSuitable(VkPhysicalDevice device) const {
+    static bool isDeviceSuitable(VkPhysicalDevice device) {
         VkPhysicalDeviceProperties props{};
         VkPhysicalDeviceFeatures features{};
-
         vkGetPhysicalDeviceProperties(device, &props);
         vkGetPhysicalDeviceFeatures(device, &features);
-
-        LOG4CXX_INFO(logger_, "Checking device: "
+        LOG4CXX_INFO(LOGGER, "Checking device: "
                      << props.deviceName << " (type " << props.deviceType << ")");
 
-#ifdef __APPLE__
         return props.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU ||
                props.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU;
-#else
-        return features.geometryShader;
-#endif
     }
 
 // ----------------------------------------------------------
@@ -148,7 +132,7 @@ private:
     bool createLogicalDevice() {
         graphicsFamilyIndex_ = findGraphicsQueueFamily();
         if (graphicsFamilyIndex_ == UINT32_MAX) {
-            LOG4CXX_ERROR(logger_, "No graphics queue family found");
+            LOG4CXX_ERROR(LOGGER, "No graphics queue family found");
             return false;
         }
 
@@ -178,14 +162,14 @@ private:
 
         VkResult res = vkCreateDevice(physicalDevice_, &deviceInfo, nullptr, &device_);
         if (res != VK_SUCCESS) {
-            LOG4CXX_ERROR(logger_, "Failed to create logical device: " << res);
+            LOG4CXX_ERROR(LOGGER, "Failed to create logical device: " << res);
             return false;
         }
 
         vkGetDeviceQueue(device_, graphicsFamilyIndex_, 0, &graphicsQueue_);
         presentQueue_ = graphicsQueue_;
 
-        LOG4CXX_INFO(logger_, "Logical device created");
+        LOG4CXX_INFO(LOGGER, "Logical device created");
         return true;
     }
 
@@ -215,11 +199,11 @@ private:
         info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
         if (vkCreateCommandPool(device_, &info, nullptr, &commandPool_) != VK_SUCCESS) {
-            LOG4CXX_ERROR(logger_, "Failed to create command pool");
+            LOG4CXX_ERROR(LOGGER, "Failed to create command pool");
             return false;
         }
 
-        LOG4CXX_INFO(logger_, "Command pool created");
+        LOG4CXX_INFO(LOGGER, "Command pool created");
         return true;
     }
 
@@ -233,21 +217,17 @@ private:
         const VkDebugUtilsMessengerCallbackDataEXT* data,
         void* userData)
     {
-        static const log4cxx::LoggerPtr logger = log4cxx::Logger::getLogger("VulkanDebug");
         if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
-            LOG4CXX_ERROR(logger, "[Vulkan] " << data->pMessage);
+            LOG4CXX_ERROR(LOGGER, "[Vulkan] " << data->pMessage);
         else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
-            LOG4CXX_WARN(logger, "[Vulkan] " << data->pMessage);
+            LOG4CXX_WARN(LOGGER, "[Vulkan] " << data->pMessage);
         else
-            LOG4CXX_INFO(logger, "[Vulkan] " << data->pMessage);
+            LOG4CXX_INFO(LOGGER, "[Vulkan] " << data->pMessage);
         return VK_FALSE;
     }
 
     bool createDebugMessenger()
     {
-        if (!enableValidation_)
-            return true;
-
         VkDebugUtilsMessengerCreateInfoEXT info{};
         info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
 
@@ -273,18 +253,14 @@ private:
 // Members
 // ----------------------------------------------------------
 
-    log4cxx::LoggerPtr logger_;
-    bool enableValidation_{true};
+    inline static const log4cxx::LoggerPtr LOGGER = log4cxx::Logger::getLogger("VulkanDeviceContext");
 
     VkInstance instance_{VK_NULL_HANDLE};
     VkPhysicalDevice physicalDevice_{VK_NULL_HANDLE};
     VkDevice device_{VK_NULL_HANDLE};
-
     VkQueue graphicsQueue_{VK_NULL_HANDLE};
     VkQueue presentQueue_{VK_NULL_HANDLE};
-
     VkCommandPool commandPool_{VK_NULL_HANDLE};
-
     uint32_t graphicsFamilyIndex_{UINT32_MAX};
     VkDebugUtilsMessengerEXT debugMessenger_{VK_NULL_HANDLE};
 };
