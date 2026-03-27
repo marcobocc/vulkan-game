@@ -23,7 +23,7 @@ find_package(VulkanHeaders CONFIG REQUIRED)
 # -------------------------------------------------------------------------
 # Sources
 # -------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCES src/*.cpp src/*.h)
+file(GLOB_RECURSE SOURCES src/*.cpp src/*.hpp)
 
 # -------------------------------------------------------------------------
 # Executable
@@ -33,7 +33,10 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # -------------------------------------------------------------------------
 # Include directories
 # -------------------------------------------------------------------------
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
 
 # -------------------------------------------------------------------------
 # Link libraries
