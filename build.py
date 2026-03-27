@@ -67,6 +67,28 @@ def get_vcpkg_toolchain() -> Path:
 # -----------------------------------------------------------------------------
 # Build Steps
 # -----------------------------------------------------------------------------
+def get_source_files() -> list[Path]:
+    files = []
+    for folder in ["src", "include"]:
+        for ext in ("*.cpp", "*.hpp", "*.h"):
+            for f in Path(folder).rglob(ext):
+                if BUILD_DIR not in f.parents:
+                    files.append(f)
+    return files
+
+def run_clang_tidy() -> None:
+    info("Running clang-tidy")
+    cmd = [
+        "clang-tidy",
+        "-p", str(PROJECT_ROOT),
+        "-quiet",
+        "-header-filter=src/.*|include/.*",
+        "--warnings-as-errors=*",
+    ]
+    src_files = get_source_files()
+    cmd += [str(f) for f in src_files]
+    run_cmd(cmd)
+
 def clean_build_dir() -> None:
     if BUILD_DIR.exists():
         warn(f"Removing {BUILD_DIR}")
@@ -116,20 +138,21 @@ def run_target(target: str) -> None:
 # Main Workflow
 # -----------------------------------------------------------------------------
 def main() -> None:
-    # Argument parser for optional --clean
     import argparse
     parser = argparse.ArgumentParser(description="Build script for CrossPlatformVulkanEngine")
+    parser.add_argument("--lint", action="store_true", help="Run Clang-Tidy and exit")
     parser.add_argument("--clean", action="store_true", help="Clean build directory and exit")
     args = parser.parse_args()
 
-    if args.clean:
+    if args.lint:
+        run_clang_tidy()
+    elif args.clean:
         clean_build_dir()
-        return
-
-    info("Starting build workflow")
-    build_target(TARGET)
-    run_target(TARGET)
-    success("Build and run completed successfully.")
+    else:
+        info("Starting build workflow")
+        build_target(TARGET)
+        run_target(TARGET)
+        success("Build and run completed successfully.")
 
 if __name__ == "__main__":
     main()
