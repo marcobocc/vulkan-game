@@ -52,19 +52,23 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         GPUOpen::VulkanMemoryAllocator
 )
 
+
 # On macOS, link MoltenVK explicitly
-if(APPLE)
+if (APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${MOLTENVK_LIBRARY})
-endif()
+endif ()
+
+# Ensure VK_NO_PROTOTYPES is defined globally for all translation units
+target_compile_definitions(${PROJECT_NAME} PRIVATE VK_NO_PROTOTYPES)
 
 # -------------------------------------------------------------------------
 # Compiler options
 # -------------------------------------------------------------------------
-if(MSVC)
+if (MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /W4 /permissive-)
-else()
+else ()
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic -Wno-unused-parameter)
-endif()
+endif ()
 
 # -------------------------------------------------------------------------
 # Optional Vulkan macro

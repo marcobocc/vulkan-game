@@ -13,6 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 BUILD_DIR = PROJECT_ROOT / "build"
 TARGET = "GameEngine"
 
+
 # -----------------------------------------------------------------------------
 # Colors / Logging
 # -----------------------------------------------------------------------------
@@ -26,18 +27,37 @@ class Color:
     CYAN = "\033[36m"
     DIM = "\033[2m"
 
+
 LABEL_WIDTH = 12
+
+
 def _log(label: str, msg: str, color: str = "") -> None:
     print(f"{Color.BOLD}{color}[{label}]".ljust(LABEL_WIDTH) + f"{Color.RESET} {msg}")
 
+
 def info(msg: str) -> None: _log("INFO", msg, Color.BLUE)
+
+
 def warn(msg: str) -> None: _log("WARN", msg, Color.YELLOW)
+
+
 def success(msg: str) -> None: _log("SUCCESS", msg, Color.GREEN)
+
+
 def error(msg: str) -> None: _log("ERROR", msg, Color.RED)
+
+
 def configure(msg: str) -> None: _log("CONFIGURE", msg, Color.BLUE)
+
+
 def build_log(msg: str) -> None: _log("BUILD", msg, Color.BLUE)
+
+
 def run_log(msg: str) -> None: _log("RUN", msg, Color.CYAN)
+
+
 def log_cmd(msg: str) -> None: _log("CMD", msg, Color.DIM)
+
 
 # -----------------------------------------------------------------------------
 # Utilities
@@ -49,6 +69,7 @@ def run_cmd(cmd_list, cwd: Path | None = None) -> None:
     except subprocess.CalledProcessError as exc:
         error(f"Command failed: {exc}")
         sys.exit(1)
+
 
 # -----------------------------------------------------------------------------
 # vcpkg
@@ -64,6 +85,7 @@ def get_vcpkg_toolchain() -> Path:
         sys.exit(1)
     return toolchain
 
+
 # -----------------------------------------------------------------------------
 # Build Steps
 # -----------------------------------------------------------------------------
@@ -75,6 +97,7 @@ def get_source_files() -> list[Path]:
                 if BUILD_DIR not in f.parents:
                     files.append(f)
     return files
+
 
 def run_clang_tidy() -> None:
     info("Running clang-tidy")
@@ -89,12 +112,14 @@ def run_clang_tidy() -> None:
     cmd += [str(f) for f in src_files]
     run_cmd(cmd)
 
+
 def clean_build_dir() -> None:
     if BUILD_DIR.exists():
         warn(f"Removing {BUILD_DIR}")
         shutil.rmtree(BUILD_DIR)
     BUILD_DIR.mkdir(parents=True, exist_ok=True)
     success("Build directory ready.")
+
 
 def configure_cmake(toolchain: Path, build_type: str = "Debug") -> None:
     configure(f"Running CMake ({build_type})")
@@ -106,11 +131,31 @@ def configure_cmake(toolchain: Path, build_type: str = "Debug") -> None:
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
     ], cwd=BUILD_DIR)
 
+
 def build_target(target: str) -> None:
     toolchain = get_vcpkg_toolchain()
+    # Compile shaders before building
+    compile_shaders()
     configure_cmake(toolchain)
     build_log(f"Building target {target}")
     run_cmd(["cmake", "--build", "."], cwd=BUILD_DIR)
+
+
+# -----------------------------------------------------------------------------
+# Shader Compilation
+# -----------------------------------------------------------------------------
+def compile_shaders() -> None:
+    input_shaders_dir = PROJECT_ROOT / "shaders"
+    output_shaders_dir = BUILD_DIR / "shaders"
+    output_shaders_dir.mkdir(parents=True, exist_ok=True)
+    shader_exts = {".vert", ".frag"}
+    for shader in input_shaders_dir.iterdir():
+        if shader.suffix not in shader_exts:
+            continue
+        out = output_shaders_dir / f"{shader.name}.spv"
+        info(f"Compiling {shader.name} -> {out.name}")
+        run_cmd(["glslc", str(shader), "-o", str(out)])
+
 
 # -----------------------------------------------------------------------------
 # Executable Handling
@@ -119,6 +164,7 @@ def ensure_executable(path: Path) -> None:
     if not os.access(path, os.X_OK):
         warn(f"Setting executable permission: {path}")
         path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
 
 def find_executable(target: str) -> Path:
     candidates = [BUILD_DIR / target, BUILD_DIR / target / target]
@@ -129,10 +175,12 @@ def find_executable(target: str) -> Path:
     error(f"Executable {target} not found. Checked:\n" + "\n".join(f"  - {p}" for p in candidates))
     sys.exit(1)
 
+
 def run_target(target: str) -> None:
     exe = find_executable(target)
     run_log(f"Running executable: {exe}")
     run_cmd([str(exe)], cwd=exe.parent)
+
 
 # -----------------------------------------------------------------------------
 # Main Workflow
@@ -153,6 +201,7 @@ def main() -> None:
         build_target(TARGET)
         run_target(TARGET)
         success("Build and run completed successfully.")
+
 
 if __name__ == "__main__":
     main()
