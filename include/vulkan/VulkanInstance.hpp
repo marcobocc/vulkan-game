@@ -57,7 +57,7 @@ public:
         volkLoadInstance(instance_);
     }
 
-    VkInstance vulkanHandle() const { return instance_; }
+    VkInstance getVkInstance() const { return instance_; }
 
 private:
     VkInstance instance_{VK_NULL_HANDLE};

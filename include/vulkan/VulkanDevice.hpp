@@ -21,28 +21,49 @@ public:
     }
 
     explicit VulkanDevice(VkInstance instance) {
-        VkPhysicalDevice physicalDevice = pickPhysicalDevice(instance);
-        createLogicalDevice(physicalDevice);
-    };
+        pickPhysicalDevice(instance);
+        createLogicalDevice(physicalDevice_);
+    }
+
+    VkDevice getVkDevice() const { return device_; }
+    VkPhysicalDevice getVkPhysicalDevice() const { return physicalDevice_; }
+    uint32_t getGraphicsQueueFamilyIndex() const { return graphicsQueueFamilyIndex_; }
+    VkQueue getVkGraphicsQueue() const { return graphicsQueue_; }
 
 private:
     bool createLogicalDevice(VkPhysicalDevice physicalDevice) {
-        graphicsFamilyIndex_ = findGraphicsQueueFamily(physicalDevice);
-        if (graphicsFamilyIndex_ == UINT32_MAX) {
+        graphicsQueueFamilyIndex_ = findGraphicsQueueFamily(physicalDevice);
+        if (graphicsQueueFamilyIndex_ == UINT32_MAX) {
             return false;
         }
         float priority = 1.0f;
         VkDeviceQueueCreateInfo queueInfo{};
         queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueInfo.queueFamilyIndex = graphicsFamilyIndex_;
+        queueInfo.queueFamilyIndex = graphicsQueueFamilyIndex_;
         queueInfo.queueCount = 1;
         queueInfo.pQueuePriorities = &priority;
         VkPhysicalDeviceFeatures features{};
         std::vector<const char*> extensions;
+        extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
 #ifdef __APPLE__
-        extensions.push_back("VK_KHR_portability_subset");
+        uint32_t extCount = 0;
+        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, nullptr);
+        std::vector<VkExtensionProperties> availableExtensions(extCount);
+        vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extCount, availableExtensions.data());
+
+        auto it = std::find_if(
+                availableExtensions.begin(), availableExtensions.end(), [](const VkExtensionProperties& ext) {
+                    return std::string_view(ext.extensionName,
+                                            strnlen(ext.extensionName, VK_MAX_EXTENSION_NAME_SIZE)) ==
+                           "VK_KHR_portability_subset";
+                });
+
+        if (it != availableExtensions.end()) {
+            extensions.push_back("VK_KHR_portability_subset");
+        }
 #endif
-        extensions.push_back("VK_KHR_swapchain");
+
         VkDeviceCreateInfo deviceInfo{};
         deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
         deviceInfo.pQueueCreateInfos = &queueInfo;
@@ -54,12 +75,12 @@ private:
         throwIfUnsuccessful(vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device_));
         volkLoadDevice(device_);
 
-        vkGetDeviceQueue(device_, graphicsFamilyIndex_, 0, &graphicsQueue_);
+        vkGetDeviceQueue(device_, graphicsQueueFamilyIndex_, 0, &graphicsQueue_);
         presentQueue_ = graphicsQueue_;
         return true;
     }
 
-    static VkPhysicalDevice pickPhysicalDevice(VkInstance instance) {
+    void pickPhysicalDevice(VkInstance instance) {
         uint32_t deviceCount = 0;
         throwIfUnsuccessful(vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr));
 
@@ -67,10 +88,12 @@ private:
         vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices.data());
         for (const auto physicalDevice: physicalDevices) {
             if (isDeviceSuitable(physicalDevice)) {
-                return physicalDevice;
+                physicalDevice_ = physicalDevice;
             }
         }
-        return VK_NULL_HANDLE;
+        if (physicalDevice_ == VK_NULL_HANDLE) {
+            throw std::runtime_error("Failed to find a suitable GPU");
+        }
     }
 
     static bool isDeviceSuitable(VkPhysicalDevice device) {
@@ -96,8 +119,8 @@ private:
     inline static const log4cxx::LoggerPtr LOGGER = log4cxx::Logger::getLogger("VulkanDevice");
 
     VkDevice device_{VK_NULL_HANDLE};
+    VkPhysicalDevice physicalDevice_{VK_NULL_HANDLE};
     VkQueue graphicsQueue_{VK_NULL_HANDLE};
     VkQueue presentQueue_{VK_NULL_HANDLE};
-
-    uint32_t graphicsFamilyIndex_{UINT32_MAX};
+    uint32_t graphicsQueueFamilyIndex_{UINT32_MAX};
 };
