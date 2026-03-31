@@ -2,14 +2,13 @@
 Language: Cpp
 BasedOnStyle: LLVM
 AccessModifierOffset: -4
-AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
 AlignOperands: true
 AlignTrailingComments: false
-AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AlwaysBreakTemplateDeclarations: Yes
-BinPackParameters: false
+AllowAllConstructorInitializersOnNextLine: false
+AllowShortIfStatementsOnASingleLine: true
 BraceWrapping:
   AfterCaseLabel: false
   AfterClass: false
@@ -27,11 +26,13 @@ BraceWrapping:
   SplitEmptyFunction: true
   SplitEmptyRecord: true
   SplitEmptyNamespace: true
+BinPackParameters: false
+BinPackArguments: false
 BreakBeforeBraces: Custom
 BreakConstructorInitializers: AfterColon
 BreakConstructorInitializersBeforeComma: false
 ColumnLimit: 120
-ConstructorInitializerAllOnOneLineOrOnePerLine: false
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ContinuationIndentWidth: 8
 IncludeCategories:
   - Regex: '^<.*'
