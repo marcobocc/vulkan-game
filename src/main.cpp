@@ -14,20 +14,17 @@ int main() {
     Logger::getRootLogger()->addAppender(console);
     static const LoggerPtr logger = Logger::getLogger("GameEngine");
 
-    if (!glfwInit())
-        return -1;
+    if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    GLFWwindow *window = glfwCreateWindow(800, 600, "GameEngine", nullptr, nullptr);
-    if (!window)
-        return -1;
-    VulkanGraphicsBackend backend;
-    if (!backend.init(window))
-        return -1;
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
-        backend.renderFrame();
+    GLFWwindow* window = glfwCreateWindow(800, 600, "GameEngine", nullptr, nullptr);
+    if (!window) return -1;
+    {
+        auto graphicsBackend = VulkanGraphicsBackend(window);
+        while (!glfwWindowShouldClose(window)) {
+            glfwPollEvents();
+            graphicsBackend.renderFrame();
+        }
     }
-    backend.cleanup();
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
