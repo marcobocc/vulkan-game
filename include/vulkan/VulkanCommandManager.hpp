@@ -12,11 +12,16 @@ public:
     VulkanCommandManager(VulkanCommandManager&&) = delete;
     VulkanCommandManager& operator=(VulkanCommandManager&&) = delete;
 
-    explicit VulkanCommandManager(VkDevice device, uint32_t graphicsQueueFamilyIndex, VkQueue graphicsQueue) :
+    explicit VulkanCommandManager(VkDevice device,
+                                  uint32_t graphicsQueueFamilyIndex,
+                                  VkQueue graphicsQueue,
+                                  size_t maxFramesInFlight) :
         device_(device),
         graphicsQueueFamilyIndex_(graphicsQueueFamilyIndex),
         graphicsQueue_(graphicsQueue),
-        frames_(MAX_FRAMES_IN_FLIGHT) {
+        frames_(maxFramesInFlight),
+        maxFramesInFlight_(maxFramesInFlight),
+        currentFrame_(0) {
         createCommandPools();
         createFences();
     }
@@ -40,7 +45,7 @@ public:
         vkResetCommandPool(device_, commandPool, 0);
     }
 
-    void endFrame() { currentFrame_ = (currentFrame_ + 1) % MAX_FRAMES_IN_FLIGHT; }
+    void endFrame() { currentFrame_ = (currentFrame_ + 1) % maxFramesInFlight_; }
 
     VkCommandBuffer allocateCommandBuffer(VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
         auto& [commandPool, frameFence] = frames_.at(currentFrame_);
@@ -110,8 +115,6 @@ private:
         }
     }
 
-    static constexpr uint32_t MAX_FRAMES_IN_FLIGHT = 3;
-
     struct FrameContext {
         VkCommandPool commandPool = VK_NULL_HANDLE;
         VkFence frameFence = VK_NULL_HANDLE;
@@ -121,5 +124,6 @@ private:
     uint32_t graphicsQueueFamilyIndex_;
     VkQueue graphicsQueue_;
     std::vector<FrameContext> frames_;
-    uint32_t currentFrame_ = 0;
+    size_t maxFramesInFlight_;
+    size_t currentFrame_;
 };

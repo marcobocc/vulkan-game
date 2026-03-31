@@ -15,44 +15,67 @@ static const log4cxx::LoggerPtr LOGGER = log4cxx::Logger::getLogger("VulkanGraph
 
 class VulkanGraphicsBackend {
 public:
-    VulkanGraphicsBackend(const VulkanGraphicsBackend &) = delete;
-    VulkanGraphicsBackend &operator=(const VulkanGraphicsBackend &) = delete;
-    VulkanGraphicsBackend(VulkanGraphicsBackend &&) = delete;
-    VulkanGraphicsBackend &operator=(VulkanGraphicsBackend &&) = delete;
+    static constexpr size_t MAX_FRAMES_IN_FLIGHT = 2;
+    VulkanGraphicsBackend(const VulkanGraphicsBackend&) = delete;
+    VulkanGraphicsBackend& operator=(const VulkanGraphicsBackend&) = delete;
+    VulkanGraphicsBackend(VulkanGraphicsBackend&&) = delete;
+    VulkanGraphicsBackend& operator=(VulkanGraphicsBackend&&) = delete;
 
     ~VulkanGraphicsBackend() {
-        if (imageAvailableSemaphore_ != VK_NULL_HANDLE)
-            vkDestroySemaphore(device_.getVkDevice(), imageAvailableSemaphore_, nullptr);
-        if (renderFinishedSemaphore_ != VK_NULL_HANDLE)
-            vkDestroySemaphore(device_.getVkDevice(), renderFinishedSemaphore_, nullptr);
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+            if (imageAvailableSemaphores_[i] != VK_NULL_HANDLE)
+                vkDestroySemaphore(device_.getVkDevice(), imageAvailableSemaphores_[i], nullptr);
+            if (renderFinishedSemaphores_[i] != VK_NULL_HANDLE)
+                vkDestroySemaphore(device_.getVkDevice(), renderFinishedSemaphores_[i], nullptr);
+            if (inFlightFences_[i] != VK_NULL_HANDLE)
+                vkDestroyFence(device_.getVkDevice(), inFlightFences_[i], nullptr);
+        }
     }
 
-    explicit VulkanGraphicsBackend(GLFWwindow *window) :
-        window_(window), debugMessenger_(instance_.getVkInstance()), device_(instance_.getVkInstance()),
-        commandManager_(device_.getVkDevice(), device_.getGraphicsQueueFamilyIndex(), device_.getVkGraphicsQueue()),
-        swapchainManager_(window_, instance_.getVkInstance(), device_.getVkPhysicalDevice(), device_.getVkDevice(),
+    explicit VulkanGraphicsBackend(GLFWwindow* window) :
+        window_(window),
+        debugMessenger_(instance_.getVkInstance()),
+        device_(instance_.getVkInstance()),
+        commandManager_(device_.getVkDevice(),
+                        device_.getGraphicsQueueFamilyIndex(),
+                        device_.getVkGraphicsQueue(),
+                        MAX_FRAMES_IN_FLIGHT),
+        swapchainManager_(window_,
+                          instance_.getVkInstance(),
+                          device_.getVkPhysicalDevice(),
+                          device_.getVkDevice(),
                           device_.getGraphicsQueueFamilyIndex()),
         triangleObject_(device_.getVkDevice(), device_.getVkPhysicalDevice(), swapchainManager_.renderPass()) {
-
-        if (!window)
-            throw std::runtime_error("Window pointer is null");
+        if (!window) throw std::runtime_error("Window pointer is null");
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        VkFenceCreateInfo fenceInfo{};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
+            throwIfUnsuccessful(vkCreateSemaphore(
+                    device_.getVkDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores_.at(i)));
+            throwIfUnsuccessful(vkCreateSemaphore(
+                    device_.getVkDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores_.at(i)));
+            throwIfUnsuccessful(vkCreateFence(device_.getVkDevice(), &fenceInfo, nullptr, &inFlightFences_.at(i)));
+        }
     }
 
     void renderFrame() {
-        if (imageAvailableSemaphore_ == VK_NULL_HANDLE || renderFinishedSemaphore_ == VK_NULL_HANDLE) {
-            VkSemaphoreCreateInfo semaphoreInfo{};
-            semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-            throwIfUnsuccessful(
-                    vkCreateSemaphore(device_.getVkDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphore_));
-            throwIfUnsuccessful(
-                    vkCreateSemaphore(device_.getVkDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphore_));
+        VkSemaphore imageAvailableSemaphore = imageAvailableSemaphores_.at(currentFrame_);
+        VkSemaphore renderFinishedSemaphore = renderFinishedSemaphores_.at(currentFrame_);
+        VkFence inFlightFence = inFlightFences_.at(currentFrame_);
+
+        VkResult fenceStatus = vkGetFenceStatus(device_.getVkDevice(), inFlightFence);
+        if (fenceStatus == VK_NOT_READY) {
+            // Previous frame is still in flight, skip rendering this frame to avoid blocking UI
+            return;
         }
+        vkResetFences(device_.getVkDevice(), 1, &inFlightFence);
 
         uint32_t imageIndex = 0;
-        if (!swapchainManager_.acquireNextImage(imageAvailableSemaphore_, imageIndex))
-            return;
-        if (imageIndex >= swapchainManager_.imageCount())
-            return;
+        if (!swapchainManager_.acquireNextImage(imageAvailableSemaphore, imageIndex)) return;
+        if (imageIndex >= swapchainManager_.imageCount()) return;
 
         commandManager_.beginFrame();
         VkCommandBuffer cmd = commandManager_.allocateCommandBuffer();
@@ -80,21 +103,23 @@ public:
         vkCmdEndRenderPass(cmd);
 
         VulkanCommandManager::endCommandBuffer(cmd);
-        commandManager_.submitCommandBuffer(cmd, imageAvailableSemaphore_, renderFinishedSemaphore_);
-        swapchainManager_.present(device_.getVkGraphicsQueue(), renderFinishedSemaphore_, imageIndex);
+        commandManager_.submitCommandBuffer(cmd, imageAvailableSemaphore, renderFinishedSemaphore);
+        swapchainManager_.present(device_.getVkGraphicsQueue(), renderFinishedSemaphore, imageIndex);
         commandManager_.endFrame();
+        currentFrame_ = (currentFrame_ + 1) % MAX_FRAMES_IN_FLIGHT;
     }
 
 private:
-    GLFWwindow *window_ = nullptr; // TODO: Create window wrapper object
+    size_t currentFrame_ = 0;
+    std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores_{};
+    std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores_{};
+    std::array<VkFence, MAX_FRAMES_IN_FLIGHT> inFlightFences_{};
+    GLFWwindow* window_ = nullptr; // TODO: Create window wrapper object
     VulkanInstance instance_;
     VulkanDebugMessenger debugMessenger_;
     VulkanDevice device_;
     VulkanCommandManager commandManager_;
     VulkanSwapchainManager swapchainManager_;
-
-    VkSemaphore imageAvailableSemaphore_ = VK_NULL_HANDLE;
-    VkSemaphore renderFinishedSemaphore_ = VK_NULL_HANDLE;
 
     TriangleObject triangleObject_; // TODO: Move out of this class
 };
