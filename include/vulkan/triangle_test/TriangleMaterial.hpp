@@ -26,6 +26,8 @@ public:
         createGraphicsPipeline(renderPass, shaderStages);
     }
 
+    VkPipeline getVkPipeline() const { return pipeline_; }
+
 private:
     void createPipelineLayout() {
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
