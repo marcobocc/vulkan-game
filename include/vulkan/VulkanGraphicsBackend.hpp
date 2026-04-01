@@ -9,6 +9,7 @@
 #include "vulkan/VulkanDebugMessenger.hpp"
 #include "vulkan/VulkanDevice.hpp"
 #include "vulkan/VulkanInstance.hpp"
+#include "vulkan/VulkanPipelinesManager.hpp"
 #include "vulkan/VulkanSwapchainManager.hpp"
 #include "vulkan/triangle_test/TriangleObject.hpp"
 
@@ -37,6 +38,7 @@ private:
     VulkanDevice device_;
     VulkanCommandManager commandManager_;
     VulkanSwapchainManager swapchainManager_;
+    VulkanPipelinesManager pipelinesManager_;
 
     TriangleObject triangleObject_; // TODO: Move out of this class
     std::unique_ptr<VulkanHexMapObject> hexMapObject_;
