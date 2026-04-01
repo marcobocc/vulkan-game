@@ -1,18 +1,15 @@
 #pragma once
 
-#include <log4cxx/logger.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include "tilemap_test/VulkanHexMapObject.hpp"
 #include "vulkan/VulkanCommandManager.hpp"
 #include "vulkan/VulkanDebugMessenger.hpp"
 #include "vulkan/VulkanDevice.hpp"
 #include "vulkan/VulkanInstance.hpp"
 #include "vulkan/VulkanPipelinesManager.hpp"
 #include "vulkan/VulkanSwapchainManager.hpp"
-#include "vulkan/triangle_test/TriangleObject.hpp"
-
-static const log4cxx::LoggerPtr LOGGER = log4cxx::Logger::getLogger("VulkanGraphicsBackend");
+#include "vulkan/test_objects/VulkanHexMap.hpp"
+#include "vulkan/test_objects/VulkanTriangle.hpp"
 
 class VulkanGraphicsBackend {
 public:
@@ -39,6 +36,7 @@ private:
     VulkanSwapchainManager swapchainManager_;
     VulkanPipelinesManager pipelinesManager_;
 
-    TriangleObject triangleObject_; // TODO: Move out of this class
-    std::unique_ptr<VulkanHexMapObject> hexMapObject_;
+    // TODO: Move out of this class
+    VulkanTriangle triangleObject_;
+    VulkanHexMap hexMapObject_;
 };
