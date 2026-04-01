@@ -8,6 +8,7 @@
 #include "vulkan/VulkanInstance.hpp"
 #include "vulkan/VulkanPipelinesManager.hpp"
 #include "vulkan/VulkanSwapchainManager.hpp"
+#include "vulkan/VulkanVertexBuffersManager.hpp"
 #include "vulkan/test_objects/VulkanHexMap.hpp"
 #include "vulkan/test_objects/VulkanTriangle.hpp"
 
@@ -35,6 +36,7 @@ private:
     VulkanCommandManager commandManager_;
     VulkanSwapchainManager swapchainManager_;
     VulkanPipelinesManager pipelinesManager_;
+    VulkanVertexBuffersManager vertexBuffersManager_;
 
     // TODO: Move out of this class
     VulkanTriangle triangleObject_;

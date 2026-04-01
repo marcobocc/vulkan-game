@@ -23,6 +23,7 @@ VulkanGraphicsBackend::VulkanGraphicsBackend(GLFWwindow* window) :
                     MAX_FRAMES_IN_FLIGHT),
     swapchainManager_(window_, instance_.getVkInstance(), device_.getVkPhysicalDevice(), device_.getVkDevice()),
     pipelinesManager_(device_.getVkDevice(), swapchainManager_.renderPass()),
+    vertexBuffersManager_(device_.getVkDevice(), device_.getVkPhysicalDevice()),
     triangleObject_(device_.getVkDevice(), device_.getVkPhysicalDevice(), &pipelinesManager_),
     hexMapObject_(device_.getVkDevice(), device_.getVkPhysicalDevice(), createDemoHexMap(), &pipelinesManager_) {
 
