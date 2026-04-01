@@ -1,5 +1,5 @@
 #pragma once
-#include "HexMapComponent.hpp"
+#include "ecs/components/HexMapComponent.hpp"
 
 inline HexMapComponent createDemoHexMap() {
     HexMapComponent map;

@@ -3,7 +3,7 @@
 #include <vector>
 #include <vulkan/vulkan.h>
 #include "VulkanHexMapMaterial.hpp"
-#include "tilemap_test/HexMapComponent.hpp"
+#include "ecs/components/HexMapComponent.hpp"
 #include "vulkan/VulkanBuffer.hpp"
 
 class VulkanHexMapObject {
