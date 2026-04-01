@@ -39,5 +39,5 @@ private:
     VkQueue graphicsQueue_;
     std::vector<FrameContext> frames_;
     size_t maxFramesInFlight_;
-    size_t currentFrame_;
+    size_t currentFrame_{0};
 };

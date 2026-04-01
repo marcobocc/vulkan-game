@@ -3,11 +3,12 @@
 
 VulkanGraphicsBackend::~VulkanGraphicsBackend() {
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
-        if (imageAvailableSemaphores_[i] != VK_NULL_HANDLE)
-            vkDestroySemaphore(device_.getVkDevice(), imageAvailableSemaphores_[i], nullptr);
-        if (renderFinishedSemaphores_[i] != VK_NULL_HANDLE)
-            vkDestroySemaphore(device_.getVkDevice(), renderFinishedSemaphores_[i], nullptr);
-        if (inFlightFences_[i] != VK_NULL_HANDLE) vkDestroyFence(device_.getVkDevice(), inFlightFences_[i], nullptr);
+        if (imageAvailableSemaphores_.at(i) != VK_NULL_HANDLE)
+            vkDestroySemaphore(device_.getVkDevice(), imageAvailableSemaphores_.at(i), nullptr);
+        if (renderFinishedSemaphores_.at(i) != VK_NULL_HANDLE)
+            vkDestroySemaphore(device_.getVkDevice(), renderFinishedSemaphores_.at(i), nullptr);
+        if (inFlightFences_.at(i) != VK_NULL_HANDLE)
+            vkDestroyFence(device_.getVkDevice(), inFlightFences_.at(i), nullptr);
     }
 }
 

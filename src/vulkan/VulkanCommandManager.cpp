@@ -11,8 +11,7 @@ VulkanCommandManager::VulkanCommandManager(VkDevice device,
     graphicsQueueFamilyIndex_(graphicsQueueFamilyIndex),
     graphicsQueue_(graphicsQueue),
     frames_(maxFramesInFlight),
-    maxFramesInFlight_(maxFramesInFlight),
-    currentFrame_(0) {
+    maxFramesInFlight_(maxFramesInFlight) {
     createCommandPools();
     createFences();
 }

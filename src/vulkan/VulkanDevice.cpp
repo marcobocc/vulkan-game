@@ -84,7 +84,7 @@ void VulkanDevice::pickPhysicalDevice(VkInstance instance) {
 bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
     VkPhysicalDeviceProperties props{};
     vkGetPhysicalDeviceProperties(device, &props);
-    return true; // Add more checks as needed
+    return true;
 }
 
 uint32_t VulkanDevice::findGraphicsQueueFamily(VkPhysicalDevice device) {
@@ -93,7 +93,7 @@ uint32_t VulkanDevice::findGraphicsQueueFamily(VkPhysicalDevice device) {
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
     for (uint32_t i = 0; i < queueFamilyCount; ++i) {
-        if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+        if (queueFamilies.at(i).queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             return i;
         }
     }
