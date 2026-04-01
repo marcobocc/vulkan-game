@@ -64,11 +64,14 @@ def log_cmd(msg: str) -> None: _log("CMD", msg, Color.DIM)
 # -----------------------------------------------------------------------------
 def run_cmd(cmd_list, cwd: Path | None = None) -> None:
     log_cmd(" ".join(cmd_list))
-    try:
-        subprocess.run(cmd_list, cwd=cwd, check=True)
-    except subprocess.CalledProcessError as exc:
-        error(f"Command failed: {exc}")
-        sys.exit(1)
+    result = subprocess.run(cmd_list, cwd=cwd)
+    if result.returncode != 0:
+        error(f"Command failed with exit code {result.returncode}")
+        sys.exit(result.returncode)
+
+
+def get_macos_sdk_path() -> str:
+    return subprocess.check_output(["xcrun", "--sdk", "macosx", "--show-sdk-path"], text=True).strip()
 
 
 # -----------------------------------------------------------------------------
@@ -90,26 +93,37 @@ def get_vcpkg_toolchain() -> Path:
 # Build Steps
 # -----------------------------------------------------------------------------
 def get_source_files() -> list[Path]:
+    exclude_paths = [BUILD_DIR]
     files = []
     for folder in ["src", "include"]:
         for ext in ("*.cpp", "*.hpp", "*.h"):
             for f in Path(folder).rglob(ext):
-                if BUILD_DIR not in f.parents:
-                    files.append(f)
+                if any(excl in f.parents for excl in exclude_paths):
+                    continue
+                files.append(f)
     return files
 
 
 def run_clang_tidy() -> None:
     info("Running clang-tidy")
+
     cmd = [
         "clang-tidy",
-        "-p", str(PROJECT_ROOT),
+        "-p", str(BUILD_DIR),
         "-quiet",
         "-header-filter=src/.*|include/.*",
         "--warnings-as-errors=*",
     ]
+
+    if sys.platform == "darwin":
+        cmd.append("--extra-arg-before=--driver-mode=clang++")
+        sdk = get_macos_sdk_path()
+        if sdk:
+            cmd += ["--extra-arg=-isysroot", f"--extra-arg={sdk}"]
+
     src_files = get_source_files()
     cmd += [str(f) for f in src_files]
+
     run_cmd(cmd)
 
 
@@ -134,7 +148,6 @@ def configure_cmake(toolchain: Path, build_type: str = "Debug") -> None:
 
 def build_target(target: str) -> None:
     toolchain = get_vcpkg_toolchain()
-    # Compile shaders before building
     compile_shaders()
     configure_cmake(toolchain)
     build_log(f"Building target {target}")
@@ -192,15 +205,18 @@ def main() -> None:
     parser.add_argument("--clean", action="store_true", help="Clean build directory and exit")
     args = parser.parse_args()
 
+    if args.clean:
+        clean_build_dir()
+        return
+
+    info("Starting build workflow")
+    build_target(TARGET)
+
     if args.lint:
         run_clang_tidy()
-    elif args.clean:
-        clean_build_dir()
-    else:
-        info("Starting build workflow")
-        build_target(TARGET)
-        run_target(TARGET)
-        success("Build and run completed successfully.")
+
+    success("Build completed successfully.")
+    run_target(TARGET)
 
 
 if __name__ == "__main__":
