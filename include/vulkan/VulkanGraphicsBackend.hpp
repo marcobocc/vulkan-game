@@ -3,6 +3,7 @@
 #include <log4cxx/logger.h>
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include "tilemap_test/VulkanHexMapObject.hpp"
 #include "triangle_test/TriangleMaterial.hpp"
 #include "vulkan/VulkanCommandManager.hpp"
 #include "vulkan/VulkanDebugMessenger.hpp"
@@ -38,4 +39,5 @@ private:
     VulkanSwapchainManager swapchainManager_;
 
     TriangleObject triangleObject_; // TODO: Move out of this class
+    std::unique_ptr<VulkanHexMapObject> hexMapObject_;
 };

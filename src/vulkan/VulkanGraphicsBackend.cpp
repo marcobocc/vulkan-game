@@ -1,5 +1,7 @@
 #include "vulkan/VulkanGraphicsBackend.hpp"
 #include <stdexcept>
+#include "tilemap_test/HexMapGenerator.hpp"
+#include "vulkan/tilemap_test/VulkanHexMapObject.hpp"
 
 VulkanGraphicsBackend::~VulkanGraphicsBackend() {
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -21,7 +23,9 @@ VulkanGraphicsBackend::VulkanGraphicsBackend(GLFWwindow* window) :
                     device_.getVkGraphicsQueue(),
                     MAX_FRAMES_IN_FLIGHT),
     swapchainManager_(window_, instance_.getVkInstance(), device_.getVkPhysicalDevice(), device_.getVkDevice()),
-    triangleObject_(device_.getVkDevice(), device_.getVkPhysicalDevice(), swapchainManager_.renderPass()) {
+    triangleObject_(device_.getVkDevice(), device_.getVkPhysicalDevice(), swapchainManager_.renderPass()),
+    hexMapObject_(std::make_unique<VulkanHexMapObject>(
+            device_.getVkDevice(), device_.getVkPhysicalDevice(), swapchainManager_.renderPass(), createDemoHexMap())) {
     if (!window) throw std::runtime_error("Window pointer is null");
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -69,6 +73,14 @@ void VulkanGraphicsBackend::renderFrame() {
     VkBuffer triangleVertexBuffer = triangleObject_.getVkBuffer();
     vkCmdBindVertexBuffers(cmd, 0, 1, &triangleVertexBuffer, offsets.data());
     vkCmdDraw(cmd, 3, 1, 0, 0);
+    // --- Render hex map ---
+    if (hexMapObject_) {
+        VkPipeline hexPipeline = hexMapObject_->getMaterial()->getVkPipeline();
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, hexPipeline);
+        VkBuffer hexVertexBuffer = hexMapObject_->getVkBuffer();
+        vkCmdBindVertexBuffers(cmd, 0, 1, &hexVertexBuffer, offsets.data());
+        vkCmdDraw(cmd, static_cast<uint32_t>(hexMapObject_->getVertexCount()), 1, 0, 0);
+    }
     vkCmdEndRenderPass(cmd);
     VulkanCommandManager::endCommandBuffer(cmd);
     commandManager_.submitCommandBuffer(cmd, imageAvailableSemaphore, renderFinishedSemaphore);
