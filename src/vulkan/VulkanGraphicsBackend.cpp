@@ -24,9 +24,9 @@ VulkanGraphicsBackend::VulkanGraphicsBackend(GLFWwindow* window) :
                     MAX_FRAMES_IN_FLIGHT),
     swapchainManager_(window_, instance_.getVkInstance(), device_.getVkPhysicalDevice(), device_.getVkDevice()),
     pipelinesManager_(device_.getVkDevice(), swapchainManager_.renderPass()),
-    triangleObject_(device_.getVkDevice(), device_.getVkPhysicalDevice(), swapchainManager_.renderPass()),
+    triangleObject_(device_.getVkDevice(), device_.getVkPhysicalDevice()),
     hexMapObject_(std::make_unique<VulkanHexMapObject>(
-            device_.getVkDevice(), device_.getVkPhysicalDevice(), swapchainManager_.renderPass(), createDemoHexMap())) {
+            device_.getVkDevice(), device_.getVkPhysicalDevice(), createDemoHexMap())) {
     if (!window) throw std::runtime_error("Window pointer is null");
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -68,20 +68,54 @@ void VulkanGraphicsBackend::renderFrame() {
     rpInfo.clearValueCount = 1;
     rpInfo.pClearValues = &clearColor;
     vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
-    VkPipeline trianglePipeline = triangleObject_.getMaterial()->getVkPipeline();
+
+    // ---------------------------------
+    // TEST TRIANGLE RENDERING
+    // ---------------------------------
+    VkPipelineVertexInputStateCreateInfo triangleVertexInputInfo{};
+    triangleVertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    auto* trianglePipelineObj = pipelinesManager_.createOrGetPipeline(
+            "triangle", triangleVertexInputInfo, "shaders/triangle.vert.spv", "shaders/triangle.frag.spv");
+    VkPipeline trianglePipeline = trianglePipelineObj->getVkPipeline();
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, trianglePipeline);
     std::array<VkDeviceSize, 1> offsets = {0};
     VkBuffer triangleVertexBuffer = triangleObject_.getVkBuffer();
     vkCmdBindVertexBuffers(cmd, 0, 1, &triangleVertexBuffer, offsets.data());
     vkCmdDraw(cmd, 3, 1, 0, 0);
-    // --- Render hex map ---
-    if (hexMapObject_) {
-        VkPipeline hexPipeline = hexMapObject_->getMaterial()->getVkPipeline();
-        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, hexPipeline);
-        VkBuffer hexVertexBuffer = hexMapObject_->getVkBuffer();
-        vkCmdBindVertexBuffers(cmd, 0, 1, &hexVertexBuffer, offsets.data());
-        vkCmdDraw(cmd, static_cast<uint32_t>(hexMapObject_->getVertexCount()), 1, 0, 0);
-    }
+
+    // ---------------------------------
+    // TEST HEXMAP RENDERING
+    // ---------------------------------
+    VkVertexInputBindingDescription bindingDesc{};
+    bindingDesc.binding = 0;
+    bindingDesc.stride = sizeof(float) * 5; // vec2 pos + vec3 color
+    bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    std::array<VkVertexInputAttributeDescription, 2> attrDescs{};
+    attrDescs[0].binding = 0;
+    attrDescs[0].location = 0;
+    attrDescs[0].format = VK_FORMAT_R32G32_SFLOAT;
+    attrDescs[0].offset = 0;
+    attrDescs[1].binding = 0;
+    attrDescs[1].location = 1;
+    attrDescs[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attrDescs[1].offset = sizeof(float) * 2;
+    VkPipelineVertexInputStateCreateInfo hexmapVertexInputInfo{};
+    hexmapVertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    hexmapVertexInputInfo.vertexBindingDescriptionCount = 1;
+    hexmapVertexInputInfo.pVertexBindingDescriptions = &bindingDesc;
+    hexmapVertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attrDescs.size());
+    hexmapVertexInputInfo.pVertexAttributeDescriptions = attrDescs.data();
+    auto* hexPipelineObj = pipelinesManager_.createOrGetPipeline(
+            "hexmap", hexmapVertexInputInfo, "shaders/hexmap.vert.spv", "shaders/hexmap.frag.spv");
+    VkPipeline hexPipeline = hexPipelineObj->getVkPipeline();
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, hexPipeline);
+    VkBuffer hexVertexBuffer = hexMapObject_->getVkBuffer();
+    vkCmdBindVertexBuffers(cmd, 0, 1, &hexVertexBuffer, offsets.data());
+    vkCmdDraw(cmd, static_cast<uint32_t>(hexMapObject_->getVertexCount()), 1, 0, 0);
+    // ---------------------------------
+    // END OBJECTS RENDERING
+    // ---------------------------------
+
     vkCmdEndRenderPass(cmd);
     VulkanCommandManager::endCommandBuffer(cmd);
     commandManager_.submitCommandBuffer(cmd, imageAvailableSemaphore, renderFinishedSemaphore);

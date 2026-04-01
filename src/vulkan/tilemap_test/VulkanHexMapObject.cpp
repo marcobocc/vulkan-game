@@ -1,7 +1,6 @@
 #include "vulkan/tilemap_test/VulkanHexMapObject.hpp"
 #include <cmath>
 #include <glm/glm.hpp>
-#include "vulkan/tilemap_test/VulkanHexMapMaterial.hpp"
 
 namespace {
     constexpr float HEX_SIZE = 0.1f;
@@ -27,11 +26,10 @@ namespace {
 
 VulkanHexMapObject::VulkanHexMapObject(VkDevice device,
                                        VkPhysicalDevice physicalDevice,
-                                       VkRenderPass renderPass,
                                        const HexMapComponent& hexMap) :
     device_(device),
-    physicalDevice_(physicalDevice),
-    material_(std::make_unique<VulkanHexMapMaterial>(device, renderPass)) {
+    physicalDevice_(physicalDevice) {
+    // material_(std::make_unique<VulkanHexMapMaterial>(device, renderPass)) {
     generateVertices(hexMap);
     vertexBuffer_ =
             std::make_unique<VulkanBuffer>(device_,
@@ -47,7 +45,7 @@ VulkanHexMapObject::~VulkanHexMapObject() = default;
 
 VkBuffer VulkanHexMapObject::getVkBuffer() const { return vertexBuffer_->getVkBuffer(); }
 size_t VulkanHexMapObject::getVertexCount() const { return vertexCount_; }
-VulkanHexMapMaterial* VulkanHexMapObject::getMaterial() const { return material_.get(); }
+// VulkanHexMapMaterial* VulkanHexMapObject::getMaterial() const { return material_.get(); }
 
 void VulkanHexMapObject::updateVertices(const HexMapComponent& hexMap) {
     generateVertices(hexMap);
