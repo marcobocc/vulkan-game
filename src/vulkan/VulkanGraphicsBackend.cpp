@@ -24,8 +24,8 @@ VulkanGraphicsBackend::VulkanGraphicsBackend(GLFWwindow* window) :
     swapchainManager_(window_, instance_.getVkInstance(), device_.getVkPhysicalDevice(), device_.getVkDevice()),
     pipelinesManager_(device_.getVkDevice(), swapchainManager_.renderPass()),
     vertexBuffersManager_(device_.getVkDevice(), device_.getVkPhysicalDevice()),
-    triangleObject_(device_.getVkDevice(), device_.getVkPhysicalDevice(), &pipelinesManager_),
-    hexMapObject_(device_.getVkDevice(), device_.getVkPhysicalDevice(), createDemoHexMap(), &pipelinesManager_) {
+    triangleObject_(&pipelinesManager_, &vertexBuffersManager_),
+    hexMapObject_(createDemoHexMap(), &pipelinesManager_, &vertexBuffersManager_) {
 
     if (!window) throw std::runtime_error("Window pointer is null");
     VkSemaphoreCreateInfo semaphoreInfo{};

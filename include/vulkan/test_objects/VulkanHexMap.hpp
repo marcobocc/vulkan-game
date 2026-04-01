@@ -1,33 +1,22 @@
 #pragma once
 #include <cmath>
 #include <glm/glm.hpp>
-#include <memory>
 #include <vector>
 #include <vulkan/vulkan.h>
 #include "ecs/components/HexMapComponent.hpp"
 #include "vulkan/VulkanBuffer.hpp"
 #include "vulkan/VulkanPipelinesManager.hpp"
+#include "vulkan/VulkanVertexBuffersManager.hpp"
 
 class VulkanHexMap {
 public:
-    VulkanHexMap(VkDevice device,
-                 VkPhysicalDevice physicalDevice,
-                 const HexMapComponent& hexMap,
-                 VulkanPipelinesManager* pipelinesManager) :
+    VulkanHexMap(const HexMapComponent& hexMap,
+                 VulkanPipelinesManager* pipelinesManager,
+                 VulkanVertexBuffersManager* vertexBuffersManager) :
         pipelinesManager_(pipelinesManager),
-        device_(device),
-        physicalDevice_(physicalDevice) {
+        vertexBuffersManager_(vertexBuffersManager) {
 
         generateVertices(hexMap);
-
-        vertexBuffer_ = std::make_unique<VulkanBuffer>(device_,
-                                                       physicalDevice_,
-                                                       sizeof(float) * vertices_.size(),
-                                                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                               VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                                       vertices_.data());
-
         vertexCount_ = vertices_.size() / 5; // x,y + r,g,b
     }
 
@@ -64,9 +53,14 @@ public:
                 "hexmap", hexmapVertexInputInfo, "shaders/hexmap.vert.spv", "shaders/hexmap.frag.spv");
         VkPipeline hexPipeline = hexPipelineObj->getVkPipeline();
         vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, hexPipeline);
-        VkBuffer hexVertexBuffer = vertexBuffer_->getVkBuffer();
+
+        VkBuffer vertexBuffer =
+                vertexBuffersManager_
+                        ->createOrGetVertexBuffer("hexmap", vertices_.data(), sizeof(float) * vertices_.size())
+                        ->getVkBuffer();
+
         std::array<VkDeviceSize, 1> offsets = {0};
-        vkCmdBindVertexBuffers(cmd, 0, 1, &hexVertexBuffer, offsets.data());
+        vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffer, offsets.data());
         vkCmdDraw(cmd, static_cast<uint32_t>(vertexCount_), 1, 0, 0);
     }
 
@@ -115,9 +109,7 @@ private:
     }
 
     VulkanPipelinesManager* pipelinesManager_;
-    VkDevice device_;
-    VkPhysicalDevice physicalDevice_;
-    std::unique_ptr<VulkanBuffer> vertexBuffer_;
+    VulkanVertexBuffersManager* vertexBuffersManager_;
     std::vector<float> vertices_;
     size_t vertexCount_ = 0;
 };
