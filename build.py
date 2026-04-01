@@ -127,6 +127,13 @@ def run_clang_tidy() -> None:
     run_cmd(cmd)
 
 
+def run_clang_format():
+    info("Running clang-format (dry run)")
+    src_files = get_source_files()
+    for f in src_files:
+        run_cmd(["clang-format", "--dry-run", "--Werror", str(f)])
+
+
 def clean_build_dir() -> None:
     if BUILD_DIR.exists():
         warn(f"Removing {BUILD_DIR}")
@@ -213,6 +220,7 @@ def main() -> None:
     build_target(TARGET)
 
     if args.lint:
+        run_clang_format()
         run_clang_tidy()
 
     success("Build completed successfully.")
