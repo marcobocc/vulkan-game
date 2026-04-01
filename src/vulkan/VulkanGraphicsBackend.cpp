@@ -1,6 +1,8 @@
 #include "vulkan/VulkanGraphicsBackend.hpp"
 #include <stdexcept>
 #include "tilemap_test/HexMapGenerator.hpp"
+#include "vulkan/test_objects/HexMapBuilder.hpp"
+#include "vulkan/test_objects/TriangleBuilder.hpp"
 
 VulkanGraphicsBackend::~VulkanGraphicsBackend() {
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -23,9 +25,7 @@ VulkanGraphicsBackend::VulkanGraphicsBackend(GLFWwindow* window) :
                     MAX_FRAMES_IN_FLIGHT),
     swapchainManager_(window_, instance_.getVkInstance(), device_.getVkPhysicalDevice(), device_.getVkDevice()),
     pipelinesManager_(device_.getVkDevice(), swapchainManager_.renderPass()),
-    vertexBuffersManager_(device_.getVkDevice(), device_.getVkPhysicalDevice()),
-    triangleObject_(&pipelinesManager_, &vertexBuffersManager_),
-    hexMapObject_(createDemoHexMap(), &pipelinesManager_, &vertexBuffersManager_) {
+    vertexBuffersManager_(device_.getVkDevice(), device_.getVkPhysicalDevice()) {
 
     if (!window) throw std::runtime_error("Window pointer is null");
     VkSemaphoreCreateInfo semaphoreInfo{};
@@ -69,8 +69,13 @@ void VulkanGraphicsBackend::renderFrame() {
     rpInfo.pClearValues = &clearColor;
     vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    triangleObject_.render(cmd);
-    hexMapObject_.render(cmd);
+    auto triangleMesh = buildTriangleMesh();
+    auto triangleMaterial = buildTriangleMaterial();
+    renderEntity(cmd, triangleMesh, triangleMaterial);
+
+    auto hexMapMesh = buildHexMapMesh(createDemoHexMap());
+    auto hexMapMaterial = buildHexMapMaterial();
+    renderEntity(cmd, hexMapMesh, hexMapMaterial);
 
     vkCmdEndRenderPass(cmd);
     VulkanCommandManager::endCommandBuffer(cmd);
@@ -78,4 +83,68 @@ void VulkanGraphicsBackend::renderFrame() {
     swapchainManager_.present(device_.getVkGraphicsQueue(), renderFinishedSemaphore, imageIndex);
     commandManager_.endFrame();
     currentFrame_ = (currentFrame_ + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+inline void
+VulkanGraphicsBackend::renderEntity(VkCommandBuffer cmd, const MeshComponent& mesh, const MaterialComponent& material) {
+    // Create or fetch vertex buffer
+    VulkanBuffer* vertexBuffer = vertexBuffersManager_.createOrGetVertexBuffer(
+            mesh.name, mesh.vertices.data(), mesh.vertices.size() * sizeof(float));
+
+    // Build Vulkan vertex attributes from MeshComponent
+    std::vector<VkVertexInputAttributeDescription> vkAttributes;
+    uint32_t location = 0;
+    for (const auto& attr: mesh.attributes) {
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        if (attr.componentCount == 2)
+            format = VK_FORMAT_R32G32_SFLOAT;
+        else if (attr.componentCount == 3)
+            format = VK_FORMAT_R32G32B32_SFLOAT;
+        else if (attr.componentCount == 4)
+            format = VK_FORMAT_R32G32B32A32_SFLOAT;
+
+        VkVertexInputAttributeDescription desc{};
+        desc.location = location++;
+        desc.binding = 0;
+        desc.format = format;
+        desc.offset = static_cast<uint32_t>(attr.offset * sizeof(float));
+        vkAttributes.push_back(desc);
+    }
+
+    // Vertex input binding
+    VkVertexInputBindingDescription bindingDesc{};
+    bindingDesc.binding = 0;
+    bindingDesc.stride = sizeof(float) * mesh.vertexStride;
+    bindingDesc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDesc;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(vkAttributes.size());
+    vertexInputInfo.pVertexAttributeDescriptions = vkAttributes.data();
+
+    // Get or create pipeline
+    auto* pipeline = pipelinesManager_.createOrGetPipeline(
+            material.name, vertexInputInfo, material.vertexShaderPath, material.fragmentShaderPath);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getVkPipeline());
+
+    // Bind vertex buffer
+    VkBuffer buf = vertexBuffer->getVkBuffer();
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(cmd, 0, 1, &buf, offsets);
+
+    // Push material tint uniform (fragment shader expects a vec3)
+    // vkCmdPushConstants(
+    // cmd, pipeline->getPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec3), &material.tintColor);
+
+    // Draw
+    if (mesh.hasIndices()) {
+        // TODO: implement index buffer binding
+        // vkCmdBindIndexBuffer(...)
+        // vkCmdDrawIndexed(...)
+    } else {
+        vkCmdDraw(cmd, static_cast<uint32_t>(mesh.getVertexCount()), 1, 0, 0);
+    }
 }

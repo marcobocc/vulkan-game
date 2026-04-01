@@ -2,6 +2,8 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include "ecs/components/MaterialComponent.hpp"
+#include "ecs/components/MeshComponent.hpp"
 #include "vulkan/VulkanCommandManager.hpp"
 #include "vulkan/VulkanDebugMessenger.hpp"
 #include "vulkan/VulkanDevice.hpp"
@@ -9,8 +11,6 @@
 #include "vulkan/VulkanPipelinesManager.hpp"
 #include "vulkan/VulkanSwapchainManager.hpp"
 #include "vulkan/VulkanVertexBuffersManager.hpp"
-#include "vulkan/test_objects/VulkanHexMap.hpp"
-#include "vulkan/test_objects/VulkanTriangle.hpp"
 
 class VulkanGraphicsBackend {
 public:
@@ -25,6 +25,8 @@ public:
     void renderFrame();
 
 private:
+    void renderEntity(VkCommandBuffer cmd, const MeshComponent& mesh, const MaterialComponent& material);
+
     size_t currentFrame_ = 0;
     std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores_{};
     std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> renderFinishedSemaphores_{};
@@ -37,8 +39,4 @@ private:
     VulkanSwapchainManager swapchainManager_;
     VulkanPipelinesManager pipelinesManager_;
     VulkanVertexBuffersManager vertexBuffersManager_;
-
-    // TODO: Move out of this class
-    VulkanTriangle triangleObject_;
-    VulkanHexMap hexMapObject_;
 };
