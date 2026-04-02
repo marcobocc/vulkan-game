@@ -22,10 +22,16 @@ public:
 
     ~VulkanGraphicsBackend();
     explicit VulkanGraphicsBackend(GLFWwindow* window);
+    void draw(const MeshComponent& mesh, const MaterialComponent& material);
     void renderFrame();
 
 private:
     void renderEntity(VkCommandBuffer cmd, const MeshComponent& mesh, const MaterialComponent& material);
+
+    struct DrawCall {
+        const MeshComponent* mesh;
+        const MaterialComponent* material;
+    };
 
     size_t currentFrame_ = 0;
     std::array<VkSemaphore, MAX_FRAMES_IN_FLIGHT> imageAvailableSemaphores_{};
@@ -39,4 +45,5 @@ private:
     VulkanSwapchainManager swapchainManager_;
     VulkanPipelinesManager pipelinesManager_;
     VulkanVertexBuffersManager vertexBuffersManager_;
+    std::vector<DrawCall> drawQueue_;
 };

@@ -1,8 +1,5 @@
 #include "vulkan/VulkanGraphicsBackend.hpp"
 #include <stdexcept>
-#include "tilemap_test/HexMapGenerator.hpp"
-#include "vulkan/test_objects/HexMapBuilder.hpp"
-#include "vulkan/test_objects/TriangleBuilder.hpp"
 
 VulkanGraphicsBackend::~VulkanGraphicsBackend() {
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {
@@ -42,6 +39,10 @@ VulkanGraphicsBackend::VulkanGraphicsBackend(GLFWwindow* window) :
     }
 }
 
+void VulkanGraphicsBackend::draw(const MeshComponent& mesh, const MaterialComponent& material) {
+    drawQueue_.push_back({&mesh, &material});
+}
+
 void VulkanGraphicsBackend::renderFrame() {
     VkSemaphore imageAvailableSemaphore = imageAvailableSemaphores_.at(currentFrame_);
     VkSemaphore renderFinishedSemaphore = renderFinishedSemaphores_.at(currentFrame_);
@@ -69,19 +70,16 @@ void VulkanGraphicsBackend::renderFrame() {
     rpInfo.pClearValues = &clearColor;
     vkCmdBeginRenderPass(cmd, &rpInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    auto triangleMesh = buildTriangleMesh();
-    auto triangleMaterial = buildTriangleMaterial();
-    renderEntity(cmd, triangleMesh, triangleMaterial);
-
-    auto hexMapMesh = buildHexMapMesh(createDemoHexMap());
-    auto hexMapMaterial = buildHexMapMaterial();
-    renderEntity(cmd, hexMapMesh, hexMapMaterial);
+    for (auto& [mesh, material]: drawQueue_) {
+        renderEntity(cmd, *mesh, *material);
+    }
 
     vkCmdEndRenderPass(cmd);
     VulkanCommandManager::endCommandBuffer(cmd);
     commandManager_.submitCommandBuffer(cmd, imageAvailableSemaphore, renderFinishedSemaphore);
     swapchainManager_.present(device_.getVkGraphicsQueue(), renderFinishedSemaphore, imageIndex);
     commandManager_.endFrame();
+    drawQueue_.clear();
     currentFrame_ = (currentFrame_ + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
