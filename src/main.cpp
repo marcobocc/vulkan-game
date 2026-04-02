@@ -9,6 +9,7 @@
 #include "ecs/components/InputComponent.hpp"
 #include "ecs/components/MaterialComponent.hpp"
 #include "ecs/components/MeshComponent.hpp"
+#include "ecs/components/TransformComponent.hpp"
 #include "ecs/systems/InputSystem.hpp"
 #include "ecs/systems/RenderSystem.hpp"
 #include "test_objects/HexMap.hpp"
@@ -34,10 +35,15 @@ int main() {
         auto triangleEntityId = ecs.createEntity();
         ecs.addComponent(triangleEntityId, buildTriangleMesh());
         ecs.addComponent(triangleEntityId, buildTriangleMaterial());
+        ecs.addComponent(triangleEntityId, TransformComponent{});
+
+        auto hexMapTransform = TransformComponent{};
+        hexMapTransform.position = {1.0f, 0.0f, 0.0f};
 
         auto hexMapEntityId = ecs.createEntity();
         ecs.addComponent(hexMapEntityId, buildHexMapMesh(createDemoHexMap()));
         ecs.addComponent(hexMapEntityId, buildHexMapMaterial());
+        ecs.addComponent(hexMapEntityId, hexMapTransform);
 
         auto graphicsBackend = VulkanGraphicsBackend(window);
         auto renderSystem = RenderSystem(ecs, graphicsBackend);
