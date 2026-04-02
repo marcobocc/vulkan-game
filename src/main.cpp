@@ -4,8 +4,10 @@
 #include <log4cxx/consoleappender.h>
 #include <log4cxx/logger.h>
 #include <log4cxx/patternlayout.h>
+#include "ecs/GameEntitiesManager.hpp"
 #include "ecs/components/MaterialComponent.hpp"
 #include "ecs/components/MeshComponent.hpp"
+#include "ecs/systems/RenderSystem.hpp"
 #include "tilemap_test/HexMapGenerator.hpp"
 #include "vulkan/VulkanGraphicsBackend.hpp"
 #include "vulkan/test_objects/HexMapBuilder.hpp"
@@ -22,21 +24,24 @@ int main() {
     if (!glfwInit()) return -1;
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     GLFWwindow* window = glfwCreateWindow(800, 600, "GameEngine", nullptr, nullptr);
-    if (!window)return -1;
+    if (!window) return -1;
 
     {
-        auto graphicsBackend = VulkanGraphicsBackend(window);
+        auto ecs = GameEntitiesManager();
+        auto triangleEntityId = ecs.createEntity();
+        ecs.addComponent(triangleEntityId, buildTriangleMesh());
+        ecs.addComponent(triangleEntityId, buildTriangleMaterial());
 
-        auto triangleMesh = buildTriangleMesh();
-        auto triangleMaterial = buildTriangleMaterial();
-        auto hexMapMesh = buildHexMapMesh(createDemoHexMap());
-        auto hexMapMaterial = buildHexMapMaterial();
+        auto hexMapEntityId = ecs.createEntity();
+        ecs.addComponent(hexMapEntityId, buildHexMapMesh(createDemoHexMap()));
+        ecs.addComponent(hexMapEntityId, buildHexMapMaterial());
+
+        auto graphicsBackend = VulkanGraphicsBackend(window);
+        auto renderSystem = RenderSystem(ecs, graphicsBackend);
 
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
-            graphicsBackend.draw(triangleMesh, triangleMaterial);
-            graphicsBackend.draw(hexMapMesh, hexMapMaterial);
-            graphicsBackend.renderFrame();
+            renderSystem.update();
         }
     }
 
