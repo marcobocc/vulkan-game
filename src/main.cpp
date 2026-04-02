@@ -8,10 +8,10 @@
 #include "ecs/components/MaterialComponent.hpp"
 #include "ecs/components/MeshComponent.hpp"
 #include "ecs/systems/RenderSystem.hpp"
-#include "tilemap_test/HexMapGenerator.hpp"
+#include "test_objects/HexMap.hpp"
+#include "test_objects/HexMapComponentsBuilder.hpp"
+#include "test_objects/TriangleComponentsBuilder.hpp"
 #include "vulkan/VulkanGraphicsBackend.hpp"
-#include "vulkan/test_objects/HexMapBuilder.hpp"
-#include "vulkan/test_objects/TriangleBuilder.hpp"
 
 using namespace log4cxx;
 

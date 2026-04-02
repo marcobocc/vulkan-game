@@ -1,10 +1,10 @@
 #pragma once
 #include <glm/glm.hpp>
-#include "ecs/components/HexMapComponent.hpp"
+#include "HexMap.hpp"
 #include "ecs/components/MaterialComponent.hpp"
 #include "ecs/components/MeshComponent.hpp"
 
-inline MeshComponent buildHexMapMesh(const HexMapComponent& hexMap) {
+inline MeshComponent buildHexMapMesh(const HexMap& hexMap) {
     MeshComponent mesh;
     mesh.name = "hexmap";
 

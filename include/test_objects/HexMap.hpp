@@ -1,8 +1,20 @@
 #pragma once
-#include "ecs/components/HexMapComponent.hpp"
+#include <unordered_map>
+#include "test_objects/CubeCoords.hpp"
 
-inline HexMapComponent createDemoHexMap() {
-    HexMapComponent map;
+struct Cell {
+    std::string name;
+    struct {
+        uint8_t r, g, b;
+    } color{255, 255, 255};
+};
+
+struct HexMap {
+    std::unordered_map<CubeCoords, Cell> tiles;
+};
+
+inline HexMap createDemoHexMap() {
+    HexMap map;
     for (int q = -2; q <= 2; ++q) {
         for (int r = -2; r <= 2; ++r) {
             int s = -q - r;
