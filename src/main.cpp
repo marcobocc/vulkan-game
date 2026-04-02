@@ -1,12 +1,15 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <iostream>
 #include <log4cxx/basicconfigurator.h>
 #include <log4cxx/consoleappender.h>
 #include <log4cxx/logger.h>
 #include <log4cxx/patternlayout.h>
 #include "ecs/GameEntitiesManager.hpp"
+#include "ecs/components/InputComponent.hpp"
 #include "ecs/components/MaterialComponent.hpp"
 #include "ecs/components/MeshComponent.hpp"
+#include "ecs/systems/InputSystem.hpp"
 #include "ecs/systems/RenderSystem.hpp"
 #include "test_objects/HexMap.hpp"
 #include "test_objects/HexMapComponentsBuilder.hpp"
@@ -39,8 +42,19 @@ int main() {
         auto graphicsBackend = VulkanGraphicsBackend(window);
         auto renderSystem = RenderSystem(ecs, graphicsBackend);
 
+        InputComponent playerInput;
+        auto inputSystem = InputSystem(window, playerInput);
+
         while (!glfwWindowShouldClose(window)) {
             glfwPollEvents();
+            inputSystem.update();
+
+            if (playerInput.keys[GLFW_KEY_ESCAPE]) {
+                glfwSetWindowShouldClose(window, GLFW_TRUE);
+            } else {
+                LOG4CXX_INFO(logger, "Mouse position: X=" << playerInput.mouseX << " Y=" << playerInput.mouseY);
+            }
+
             renderSystem.update();
         }
     }
